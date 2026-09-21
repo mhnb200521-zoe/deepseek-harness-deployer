@@ -1,0 +1,7 @@
+# Keep Windows command entrypoints compatible with cmd.exe.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Keep Unix launchers and checks portable on macOS/Linux.
+*.sh text eol=lf
+*.command text eol=lf

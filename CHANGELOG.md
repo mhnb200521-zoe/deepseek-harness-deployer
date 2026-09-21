@@ -15,6 +15,8 @@
 - 完成日志轮转，安装器保留最近的 install/runtime 日志。
 - 完成 DSH Token URL 处理：从实际 stdout 提取 URL，保留 query/token，在内存中验证并打开同一 URL，日志只记录脱敏信息。
 - 增加 `windows/start-dsh.cmd` 交付包启动模板。
+- 修复 Windows 用户入口在缺少 `PROCESSOR_ARCHITECTURE` 环境变量时的架构检测异常；S4 首次 DSH 准备改用与启动器一致的私有 npm cache，并提供独立的长耗时准备窗口。
+- 完成 Windows Fresh-User Deployment Dry Run：正式入口、7 Stage、实际 token URL、HTTP 200、桌面快捷方式和脱敏日志均完成实机证据验证。
 
 ### M3 — macOS MVP
 

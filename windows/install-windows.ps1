@@ -35,6 +35,7 @@ $script:DSH_PACKAGE       = '@deepseek-ai/dsh'
 $script:DSH_FALLBACK_VER  = '0.1.5-rc.2'
 $script:NODE_DIST_INDEX   = 'https://nodejs.org/dist/index.json'
 $script:HEALTH_TIMEOUT_S  = 120
+$script:PREP_TIMEOUT_S    = 900
 
 # 运行期状态(写入 config/deployer.json 的冻结字段)
 $script:Cfg = [ordered]@{
@@ -134,12 +135,21 @@ function Test-NodeCompatible([string]$v) {
 
 function Get-Arch {
     $a = $env:PROCESSOR_ARCHITECTURE
-    if ($env:PROCESSOR_ARCHITEW6432) { $a = $env:PROCESSOR_ARCHITEW6432 }
-    switch -Regex ($a) {
-        'ARM64' { return 'arm64' }
-        'AMD64' { return 'x64' }
-        'x86'   { return 'x86' }
-        default { return $a.ToLower() }
+    if (-not [string]::IsNullOrWhiteSpace($env:PROCESSOR_ARCHITEW6432)) {
+        $a = $env:PROCESSOR_ARCHITEW6432
+    }
+    if ([string]::IsNullOrWhiteSpace($a)) {
+        try {
+            $a = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+        } catch {
+            $a = if ([Environment]::Is64BitOperatingSystem) { 'AMD64' } else { 'x86' }
+        }
+    }
+    switch -Regex ("$a") {
+        'ARM64|ARM'  { return 'arm64' }
+        'AMD64|X64'  { return 'x64' }
+        'x86|X86'    { return 'x86' }
+        default      { return ("$a").ToLowerInvariant() }
     }
 }
 
@@ -520,22 +530,27 @@ function Invoke-S0-Probe {
     $spec = "$($script:DSH_PACKAGE)@$($script:Cfg.dshVersion)"
     $npx = Get-NpxCmd
 
-    Show-Line ("  探测 {0} 命令面(首次会下载,请稍候;最多等待 60s)..." -f $spec) 'Gray'
+    Show-Line ("  探测 {0} 命令面(首次会下载,请稍候;最多等待 {1}s)..." -f $spec, $script:PREP_TIMEOUT_S) 'Gray'
     $help = ''
+    $previousNpmCache = [Environment]::GetEnvironmentVariable('npm_config_cache', 'Process')
     try {
+        # S4 与最终启动器必须使用同一个私有 cache,避免把首次完整依赖下载延迟到 S7。
+        [Environment]::SetEnvironmentVariable('npm_config_cache', $script:Cfg.cacheDir, 'Process')
         $job = Start-Job -ScriptBlock {
             param($npxCmd, $specArg)
             & $npxCmd --yes $specArg --help 2>&1 | Out-String
         } -ArgumentList $npx, $spec
-        if (Wait-Job $job -Timeout 60) {
+        if (Wait-Job $job -Timeout $script:PREP_TIMEOUT_S) {
             $help = (Receive-Job $job) | Out-String
         } else {
             Stop-Job $job -ErrorAction SilentlyContinue
             $help = ''
-            Write-Log 'WARN' 'S0' 'probe timed out at 60s; treating as unverified'
+            Write-Log 'WARN' 'S0' ("probe timed out at {0}s; treating as unverified" -f $script:PREP_TIMEOUT_S)
         }
         Remove-Job $job -Force -ErrorAction SilentlyContinue
-    } catch { $help = '' }
+    } catch { $help = '' } finally {
+        [Environment]::SetEnvironmentVariable('npm_config_cache', $previousNpmCache, 'Process')
+    }
 
     if ($help -and $help.Trim().Length -gt 0) {
         $script:Cfg.webVerified = $true
