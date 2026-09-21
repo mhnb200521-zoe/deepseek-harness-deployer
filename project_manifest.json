@@ -1,0 +1,83 @@
+{
+  "project": {
+    "name": "deepseek-harness-deployer",
+    "title": "DeepSeek Harness Cross-Platform One-Click Deployer",
+    "version": "0.1.0-M5",
+    "description": "面向普通用户的 DeepSeek Harness(@deepseek-ai/dsh)Windows + macOS 一键自动部署产品,具备检测、安装、验证、启动、快捷方式、日志、故障恢复能力。",
+    "created": "2026-09-19",
+    "owner": "main-engineer"
+  },
+  "governance": {
+    "ruleset": "global CLAUDE.md v1.0.0",
+    "current_gate": "G3",
+    "current_milestone": "M4",
+    "gates": {
+      "G0": { "name": "项目立项", "status": "passed", "exit": "project_manifest.json 已创建" },
+      "G1": { "name": "架构设计", "status": "passed", "exit": "架构审查通过(architecture-reviewer)", "review": { "date": "2026-09-19", "verdict": "有条件通过", "blockers": ["B1","B2","B3","B4","B5"], "blockers_status": "已闭合(文档修订)" } },
+      "G2": { "name": "模块实现", "status": "completed", "exit": "Windows M2 与 macOS M3/M4 模块已实现并通过宿主机静态/单元回归" },
+      "G3": { "name": "集成测试", "status": "in_progress", "exit": "待至少一台 macOS 真机完成端到端验收" },
+      "G4": { "name": "验证与交付", "status": "pending" },
+      "G5": { "name": "项目关闭", "status": "pending" }
+    },
+    "milestones": {
+      "M0": { "name": "Architecture", "status": "completed" },
+      "M1": { "name": "Windows MVP", "status": "completed", "verified": "Case D 端到端; Case B/C 判定; Case A 选版; Case H 幂等; 端口占用=DSH 幂等分支", "known_gaps": "私有 Node 冷下载与 launcher 冷启动需净环境(M5)" },
+      "M2": { "name": "Windows Productization", "status": "completed", "verified": "Token URL 冷启动 PASS;桌面快捷方式 PASS;Repair PASS;Uninstall 默认保留 workspace/logs、删除 launcher/cache/config、停止本安装 DSH 进程且保留系统 Node PASS;Purge PASS;日志脱敏 PASS" },
+      "M3": { "name": "macOS MVP", "status": "completed", "verified": "macOS 脚本 bash -n 全部 PASS; tests/macos-check.sh PASS=9 WARN=1 FAIL=0; Windows 回归 PASS", "known_gaps": "当前宿主为 Windows, macOS 真机 Node/npx/端口/open/私有 Runtime 链路待 M5" },
+      "M4": { "name": "macOS Productization", "status": "completed", "verified": "Repair/Uninstall Bash 语法 PASS; --help PASS; 不存在安装目录时 Uninstall 不删除任何内容; macOS 静态自检 PASS=9 WARN=1 FAIL=0", "known_gaps": "当前宿主为 Windows, Repair registry/port/open 与 Uninstall 真机进程树、workspace/logs 保留/--purge 仍待 M5" },
+      "M5": { "name": "Cross-platform Validation", "status": "in_progress", "verified": "Windows 11 x64 SelfTest/windows-check PASS; M2 token URL evidence detected+token preserved+HTTP 200; macOS Bash/file-contract check PASS=9 WARN=1 FAIL=0; docs/acceptance 真机验收记录已建立", "known_gaps": "没有可用 macOS Intel/Apple Silicon 真机，无法完成 Node 私有 Runtime、npx、port、open、重复安装与 purge 真实验收" },
+      "M6": { "name": "Documentation", "status": "completed", "verified": "README、LICENSE、docs/WINDOWS.md、docs/MACOS.md、docs/TROUBLESHOOTING.md 已创建并与当前脚本行为同步", "known_gaps": "最终交付状态仍受 M5 macOS 真机验收约束" }
+    }
+  },
+  "technical_baseline": {
+    "harness_package": "@deepseek-ai/dsh",
+    "harness_package_verified": { "exists": true, "latest_version": "0.1.5-rc.2", "checked": "2026-09-19", "note": "早期 RC,须锁定版本;CLI 在非 TTY 无 --help 输出,web/--no-open/端口待 S0 实测确认" },
+    "web_start": "npx --yes @deepseek-ai/dsh@<pinned> web  [provisional/unverified — 待 S0 探测]",
+    "web_start_managed": "npx --yes @deepseek-ai/dsh@<pinned> web --no-open  [provisional/unverified — 待 S0 探测]",
+    "default_web_ui": "127.0.0.1:3080  [provisional — 待 S0 探测,以 config.port 为准]",
+    "dsh_version_policy": "锁定 config.dshVersion,禁用无版本 latest(见 ARCHITECTURE §5.2/§11.4)",
+    "node_compatibility": "^22.19.0 OR >=24.0.0",
+    "node_source": "https://nodejs.org/dist/ (official only; verified reachable 2026-09-19)"
+  },
+  "install_targets": {
+    "windows": {
+      "primary": "D:\\DeepSeekHarness",
+      "fallback": "%LOCALAPPDATA%\\DeepSeekHarness (用户选择)"
+    },
+    "macos": {
+      "app_support": "~/Library/Application Support/DeepSeekHarness",
+      "workspace": "~/DeepSeekHarness/workspace",
+      "logs": "~/Library/Logs/DeepSeekHarness"
+    }
+  },
+  "environment_snapshot": {
+    "detected_at": "2026-09-19",
+    "host_os": "Windows 11 Home China 10.0.26200",
+    "host_node": "v24.19.0",
+    "host_npm": "11.17.0",
+    "d_drive_present": true,
+    "note": "开发主机现有 Node 已满足 >=24.0.0,部署器在此机应复用而非覆盖。"
+  },
+  "acceptance_checklist": {
+    "windows_one_click": false,
+    "macos_one_click": false,
+    "os_detection": true,
+    "cpu_detection": true,
+    "node_handling": true,
+    "node_version_validation": true,
+    "npm_validation": true,
+    "dsh_package_detection": true,
+    "harness_launch": true,
+    "web_ui_accessible": true,
+    "windows_shortcut": true,
+    "macos_launcher": false,
+    "logs": true,
+    "repair": true,
+    "uninstall": true,
+    "error_id": true,
+    "readme": true,
+    "windows_doc": true,
+    "macos_doc": true,
+    "troubleshooting_doc": true
+  }
+}

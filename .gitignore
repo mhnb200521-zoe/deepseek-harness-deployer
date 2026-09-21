@@ -1,0 +1,36 @@
+# User/runtime state created by installers
+**/logs/
+**/cache/
+**/runtime/
+**/workspace/
+**/config/deployer.json
+
+# Runtime and diagnostic output
+*.log
+*.pid
+*.tmp
+*.temp
+*.part
+*.download
+*.dsh-capture
+diagnostic-*.txt
+
+# Downloaded installers and archives
+*.tar.gz
+*.tgz
+*.zip
+*.dmg
+*.pkg
+SHASUMS256-*.txt
+
+# Generated launch artifacts and OS metadata
+*.lnk
+.DS_Store
+Thumbs.db
+
+# Local editor and test residue
+.idea/
+.vscode/
+*.swp
+*.swo
+windows$
