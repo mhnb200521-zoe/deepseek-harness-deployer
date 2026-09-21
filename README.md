@@ -85,6 +85,7 @@ macOS：
 详细说明：
 
 - [Windows 使用说明](docs/WINDOWS.md)
+- [Windows 朋友简明安装说明](docs/WINDOWS_FRIEND_QUICK_START.md)
 - [Windows 普通用户安装操作方法](docs/WINDOWS_USER_SOP.md)
 - [macOS 使用说明](docs/MACOS.md)
 - [故障排查](docs/TROUBLESHOOTING.md)
