@@ -5,23 +5,38 @@
 ## Freeze Result
 
 ```text
-FREEZE: FAIL — freeze rules applied, but Git repository state is not auditable
+FREEZE: PASS — local Git baseline established; release remains blocked by M5 hardware validation
 ```
 
-原因：当前项目目录没有 `.git` 元数据，无法提供真实 branch、commit、staged/unstaged diff 或 Git clean 状态。本报告不初始化仓库，也不伪造 commit。
+Git Baseline Freeze 已完成。本地仓库已初始化、默认分支已建立、baseline commit 和 annotated tag 已创建；没有配置 remote，也没有 push。Feature Freeze 和 Code Freeze 继续有效。
 
 ## Repository State
 
 ```text
 Repository root: C:\Users\Lenovo\deepseek-harness-deployer
-Git metadata: absent
-git status: unavailable — fatal: not a git repository
-Current branch: N/A
-Current commit: N/A
-Git diff: unavailable
+Repository initialized: YES
+Git metadata: present
+Branch: main
+Baseline commit: 60039fcd541d50093ac317fcc0a13c60c69cc138
+Baseline tag: pre-hardware-validation
+Remote: none
+Baseline git status: clean before governance metadata update
+Final git status: clean after governance metadata update
 ```
 
-由于不是 Git 仓库，当前产品文件不能被称为“已提交”。本次冻结期间审计到的文件包括：
+首个 baseline commit 使用指定 message：
+
+```text
+chore(repo): establish pre-hardware-validation baseline
+```
+
+annotated tag message：
+
+```text
+Windows validated; macOS implementation complete; real Mac hardware validation pending.
+```
+
+baseline commit 纳入了完整 Source Inventory，共 27 个正式文件；本报告的 Git 元数据更新属于允许范围内的治理文档更新。
 
 ```text
 .gitignore
