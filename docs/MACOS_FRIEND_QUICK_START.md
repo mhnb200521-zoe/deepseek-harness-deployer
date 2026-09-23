@@ -22,21 +22,30 @@ DeepSeekHarness-macOS-Validation-M5.tar.gz
 macos/install-macos.command
 ```
 
-如果 macOS 第一次阻止打开：
+如果 macOS 第一次阻止打开，看到“未打开 install-macos.command”“Apple 无法验证”或类似提示，这是 Gatekeeper 对未做 Apple 开发者签名的脚本进行的首次确认。不要点击“移到废纸篓”，按下面操作：
 
 1. 在 Finder 中右键 `install-macos.command`。
-2. 选择“打开”。
-3. 在系统提示中再次选择“打开”。
+2. 选择“打开”，再在系统提示中选择“打开”。
+3. 如果右键“打开”后仍被拦截，打开“系统设置 → 隐私与安全性”，在“安全性”区域找到关于 `install-macos.command` 的提示，点击“仍要打开”，按系统要求确认。
 
-如果提示没有执行权限，在 Terminal 中进入解压目录后执行一次：
+如果提示“文件无法执行，因为你没有正确的访问权限”，说明解压或微信传输时没有保留脚本的执行权限。请在 Terminal 中执行一次下面两行命令（假设解压目录在“下载”中）：
 
 ```bash
-chmod +x macos/install-macos.command macos/install-macos.sh
+cd ~/Downloads/DeepSeekHarness-macOS-Validation-M5
+chmod u+x macos/*.command macos/*.sh
 ```
 
-然后再次双击 `install-macos.command`。
+如果你的解压目录不在“下载”中，先输入 `cd `，再把解压后的 `DeepSeekHarness-macOS-Validation-M5` 文件夹拖入 Terminal，按回车，然后执行第二行 `chmod` 命令。执行完成后，回到 Finder 再次双击 `macos/install-macos.command`，必要时重复一次“右键 → 打开”。
 
-不要关闭 Gatekeeper，也不要为了安装本工具关闭系统安全软件。
+这只是给本项目文件补回执行权限，不会关闭 Gatekeeper，也不需要管理员密码。不要关闭 Gatekeeper、系统安全软件或防火墙。
+
+如果收到的压缩包不是从可信来源获得，先不要运行；可以在 Terminal 中核对安装包 SHA256：
+
+```bash
+shasum -a 256 ~/Downloads/DeepSeekHarness-macOS-Validation-M5.tar.gz
+```
+
+应与发送者提供的校验值一致。
 
 ## 3. 等待安装完成
 

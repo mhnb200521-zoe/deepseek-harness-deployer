@@ -4,10 +4,13 @@
 
 支持 Intel Mac（`x86_64`）和 Apple Silicon（`arm64`）。项目不要求预先安装 Homebrew。
 
-首次运行前，如果压缩包没有保留 Unix 可执行权限，请在 Terminal 进入项目目录执行：
+首次运行时可能出现两类 macOS 提示：
+
+1. 如果看到“未打开 install-macos.command”或“Apple 无法验证”，在 Finder 中右键文件选择“打开”，必要时到“系统设置 → 隐私与安全性”点击“仍要打开”。不要点击“移到废纸篓”。
+2. 如果看到“文件无法执行，因为你没有正确的访问权限”，通常是压缩包或微信传输没有保留 Unix 执行权限，请在 Terminal 进入项目目录执行：
 
 ```bash
-chmod +x macos/install-macos.command macos/install-macos.sh
+chmod u+x macos/*.command macos/*.sh
 ```
 
 然后双击：
@@ -16,7 +19,7 @@ chmod +x macos/install-macos.command macos/install-macos.sh
 macos/install-macos.command
 ```
 
-Gatekeeper 首次拦截时，在 Finder 中右键文件选择“打开”，确认后再运行。不要为了运行本工具关闭 Gatekeeper 或系统安全软件。
+完成权限修复后再次双击 `macos/install-macos.command`。不要为了运行本工具关闭 Gatekeeper、系统安全软件或防火墙。
 
 安装器阶段：
 

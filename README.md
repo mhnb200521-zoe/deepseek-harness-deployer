@@ -13,13 +13,13 @@
 ## macOS：三步开始
 
 1. 下载并解压 `DeepSeekHarness-macOS-Validation-M5.tar.gz`。
-2. 首次运行前，在 Terminal 执行：
+2. 首次运行时，如果看到“Apple 无法验证”或“未打开 install-macos.command”，请在 Finder 中右键文件选择“打开”，必要时到“系统设置 → 隐私与安全性”点击“仍要打开”。如果看到“没有正确的访问权限”，再在 Terminal 执行：
 
    ```bash
-   chmod +x macos/install-macos.command macos/install-macos.sh
+   chmod u+x macos/*.command macos/*.sh
    ```
 
-   然后双击 `macos/install-macos.command`；如果 Gatekeeper 提示阻止，请在 Finder 中右键选择“打开”，确认后再运行。
+   然后再次双击 `macos/install-macos.command`。不要关闭 Gatekeeper、系统安全软件或防火墙。
 
 3. 安装完成后，双击 `~/DeepSeekHarness/DeepSeek Harness.command`。
 
