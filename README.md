@@ -4,7 +4,7 @@
 
 ## Windows：三步开始
 
-1. 下载并解压整个项目目录。
+1. 下载并解压 Windows 安装包或整个项目目录。
 2. 双击 `windows/install-windows.cmd`，等待检测、Node/npm 准备、Harness 启动和 Web UI 验证完成。
 3. 安装完成后，双击桌面的 `DeepSeek Harness`。
 
@@ -12,7 +12,7 @@
 
 ## macOS：三步开始
 
-1. 下载并解压整个项目目录。
+1. 下载并解压 `DeepSeekHarness-macOS-Validation-M5.tar.gz`。
 2. 首次运行前，在 Terminal 执行：
 
    ```bash
@@ -89,6 +89,8 @@ macOS：
 - [Windows 朋友简明安装说明 Word 文档](docs/WINDOWS_FRIEND_QUICK_START.docx)
 - [Windows 普通用户安装操作方法](docs/WINDOWS_USER_SOP.md)
 - [macOS 使用说明](docs/MACOS.md)
+- [macOS 朋友简明安装说明](docs/MACOS_FRIEND_QUICK_START.md)
+- [macOS 朋友简明安装说明 Word 文档](docs/MACOS_FRIEND_QUICK_START.docx)
 - [故障排查](docs/TROUBLESHOOTING.md)
 - [架构设计](docs/ARCHITECTURE.md)
 - [测试计划与证据](docs/test_plan.md)
