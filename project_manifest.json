@@ -10,7 +10,7 @@
   "governance": {
     "ruleset": "global CLAUDE.md v1.0.0",
     "current_gate": "G3",
-    "current_milestone": "M4",
+    "current_milestone": "M5",
     "gates": {
       "G0": { "name": "项目立项", "status": "passed", "exit": "project_manifest.json 已创建" },
       "G1": { "name": "架构设计", "status": "passed", "exit": "架构审查通过(architecture-reviewer)", "review": { "date": "2026-09-19", "verdict": "有条件通过", "blockers": ["B1","B2","B3","B4","B5"], "blockers_status": "已闭合(文档修订)" } },
