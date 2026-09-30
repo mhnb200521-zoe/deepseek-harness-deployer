@@ -1,6 +1,12 @@
 # Windows 使用与维护
 
+## 官方桌面版预览入口
+
+若你要安装 **DeepSeek Harness 原生桌面 App**，请运行 `windows/install-desktop-windows.cmd`，不要运行下方旧 Web UI 入口 `windows/install-windows.cmd`。桌面版当前为预览部署；版本选择、签名校验、快捷方式、修复/卸载与未完成验收见 [DESKTOP.md](DESKTOP.md)。Windows ARM64 目前不支持。
+
 ## 普通用户安装
+
+以下步骤描述的是旧 **Web UI + Node/npm** 部署通道。
 
 支持 Windows 10/11，x64 为主要验证目标。双击：
 

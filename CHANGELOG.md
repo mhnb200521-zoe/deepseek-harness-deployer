@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Official Desktop Preview (new migration track)
+
+- 增加 Windows x64 官方桌面版安装器：动态读取官方 feed、明确确认预发布版本、校验文件大小/SHA-512/Authenticode，检测已安装版本并启动本机确认 UI。
+- 增加 macOS arm64/x86_64 桌面版安装、修复和卸载脚本：官方 ZIP 校验、Bundle/Team ID、codesign/Gatekeeper 检查、同卷 staging/备份/事务恢复；不依赖 Homebrew 或系统 Node。
+- 为 Windows 桌面与旧 Web 安装器隔离快捷方式；Web 卸载器仅移除目标属于本次安装的快捷方式。
+- 增加桌面专用静态/单元自测及预览说明。Windows 冷安装、Apple Silicon/Intel Mac 真机和 UI 验收仍未通过；未切换现有 Web 公共入口。
+
 ### M2 — Windows Productization
 
 - 完成 Windows 桌面快捷方式生成，快捷方式目标保持为部署器生成的 `start-dsh.cmd`。

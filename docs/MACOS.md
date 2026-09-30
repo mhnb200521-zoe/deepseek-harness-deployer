@@ -1,6 +1,12 @@
 # macOS 使用与维护
 
+## 官方桌面版预览入口
+
+若你要安装 **DeepSeek Harness 原生桌面 App**，请运行 `macos/install-desktop-macos.command`；桌面 App 自带运行时，不依赖本项目安装的 Node/npm。首次运行安全提示、官方签名校验、用户级 `~/Applications` 安装位置和真机验收边界见 [DESKTOP.md](DESKTOP.md)。Apple Silicon 与 Intel 的桌面端真机验收仍为 NOT TESTED。
+
 ## 普通用户安装
+
+以下步骤描述的是旧 **Web UI + Node/npm** 部署通道。
 
 支持 Intel Mac（`x86_64`）和 Apple Silicon（`arm64`）。项目不要求预先安装 Homebrew。
 
@@ -10,7 +16,7 @@
 2. 如果看到“文件无法执行，因为你没有正确的访问权限”，通常是压缩包或微信传输没有保留 Unix 执行权限，请在 Terminal 进入项目目录执行：
 
 ```bash
-chmod u+x macos/*.command macos/*.sh
+   chmod u+x macos/install-macos.command
 ```
 
 然后双击：

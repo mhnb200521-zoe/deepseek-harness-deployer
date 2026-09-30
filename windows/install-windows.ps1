@@ -939,9 +939,23 @@ function Invoke-S6-Shortcut {
     Write-Host 'Stage 6/7  Shortcut' -ForegroundColor White
     $launcherCmd = Join-Path $script:Cfg.installRoot 'launcher\start-dsh.cmd'
     $desktop = [Environment]::GetFolderPath('Desktop')
-    $lnkPath = Join-Path $desktop 'DeepSeek Harness.lnk'
+    $lnkPath = Join-Path $desktop 'DeepSeek Harness Web.lnk'
     try {
         $ws = New-Object -ComObject WScript.Shell
+        if (Test-Path -LiteralPath $lnkPath) {
+            $oldItem = Get-Item -LiteralPath $lnkPath -Force -ErrorAction Stop
+            if (($oldItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $oldItem.PSIsContainer -or -not (Test-Path -LiteralPath $lnkPath -PathType Leaf)) {
+                throw 'DeepSeek Harness Web shortcut path is not a regular file'
+            }
+            $oldShortcut = $ws.CreateShortcut($lnkPath)
+            $oldTarget = [string]$oldShortcut.TargetPath
+            $expectedTarget = [IO.Path]::GetFullPath($launcherCmd)
+            if (-not $oldTarget -or -not [IO.Path]::IsPathRooted($oldTarget) -or
+                -not [string]::Equals([IO.Path]::GetFullPath($oldTarget), $expectedTarget, [StringComparison]::OrdinalIgnoreCase)) {
+                throw 'DeepSeek Harness Web shortcut already belongs to another target'
+            }
+            [void][Runtime.InteropServices.Marshal]::ReleaseComObject($oldShortcut)
+        }
         $sc = $ws.CreateShortcut($lnkPath)
         $sc.TargetPath = $launcherCmd
         $sc.WorkingDirectory = $script:Cfg.workspaceDir

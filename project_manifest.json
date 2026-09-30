@@ -27,6 +27,17 @@
       "M4": { "name": "macOS Productization", "status": "completed", "verified": "Repair/Uninstall Bash 语法 PASS; --help PASS; 不存在安装目录时 Uninstall 不删除任何内容; macOS 静态自检 PASS=9 WARN=1 FAIL=0", "known_gaps": "当前宿主为 Windows, Repair registry/port/open 与 Uninstall 真机进程树、workspace/logs 保留/--purge 仍待 M5" },
       "M5": { "name": "Cross-platform Validation", "status": "in_progress", "verified": "Windows 11 x64 SelfTest/windows-check PASS; M2 token URL evidence detected+token preserved+HTTP 200; macOS Bash/file-contract check PASS=9 WARN=1 FAIL=0; docs/acceptance 真机验收记录已建立", "known_gaps": "没有可用 macOS Intel/Apple Silicon 真机，无法完成 Node 私有 Runtime、npx、port、open、重复安装与 purge 真实验收" },
       "M6": { "name": "Documentation", "status": "completed", "verified": "README、LICENSE、docs/WINDOWS.md、docs/MACOS.md、docs/TROUBLESHOOTING.md 已创建并与当前脚本行为同步", "known_gaps": "最终交付状态仍受 M5 macOS 真机验收约束" }
+    },
+    "change_tracks": {
+      "desktop_migration": {
+        "name": "官方 DeepSeek Harness 桌面版迁移",
+        "architecture_gate": { "status": "passed", "date": "2026-09-30", "scope": "仅桌面迁移 G1 架构；不是实现或产品验收 PASS" },
+        "implementation_gate": { "status": "in_progress", "evidence": ["Windows PowerShell 5.1 self-test PASS", "Windows 本机官方签名 App 只读探测 PASS", "Git Bash macOS 静态与 parser self-test PASS"], "gaps": ["Windows 新用户冷安装/UI 未测试", "macOS Intel 真机未测试", "macOS Apple Silicon 真机未测试"] },
+        "integration_gate": { "status": "pending", "release_status": "blocked_pending_real_hardware_acceptance" },
+        "public_entry_switched": false,
+        "preview_version_observed": "0.2.0-rc.2",
+        "preview_version_observed_date": "2026-09-30"
+      }
     }
   },
   "technical_baseline": {
@@ -37,7 +48,14 @@
     "default_web_ui": "127.0.0.1:3080  [provisional — 待 S0 探测,以 config.port 为准]",
     "dsh_version_policy": "锁定 config.dshVersion,禁用无版本 latest(见 ARCHITECTURE §5.2/§11.4)",
     "node_compatibility": "^22.19.0 OR >=24.0.0",
-    "node_source": "https://nodejs.org/dist/ (official only; verified reachable 2026-09-19)"
+    "node_source": "https://nodejs.org/dist/ (official only; verified reachable 2026-09-19)",
+    "official_desktop": {
+      "source": "https://download.deepseek.com/dsh-desk/feeds/",
+      "stable_feed_status_checked": "HTTP 404 on 2026-09-30",
+      "preview_version_observed": "0.2.0-rc.2",
+      "node_policy_applies": false,
+      "note": "Desktop app manages its bundled runtime; app version is dynamically read from official feed and not permanently pinned."
+    }
   },
   "install_targets": {
     "windows": {
@@ -47,7 +65,9 @@
     "macos": {
       "app_support": "~/Library/Application Support/DeepSeekHarness",
       "workspace": "~/DeepSeekHarness/workspace",
-      "logs": "~/Library/Logs/DeepSeekHarness"
+      "logs": "~/Library/Logs/DeepSeekHarness",
+      "desktop_app": "~/Applications/DeepSeek Harness.app",
+      "desktop_deployer_state": "~/Library/Application Support/DeepSeekHarnessDesktopDeployer"
     }
   },
   "environment_snapshot": {
@@ -79,5 +99,18 @@
     "windows_doc": true,
     "macos_doc": true,
     "troubleshooting_doc": true
+  },
+  "desktop_migration_acceptance": {
+    "windows_x64_installer_implementation": true,
+    "windows_x64_cold_install": false,
+    "windows_arm64_supported": false,
+    "macos_arm64_implementation": true,
+    "macos_arm64_hardware_acceptance": false,
+    "macos_x64_implementation": true,
+    "macos_x64_hardware_acceptance": false,
+    "windows_shortcut_coexistence_static": true,
+    "macos_gatekeeper_real_hardware": false,
+    "public_entry_switched": false,
+    "cross_platform_release": false
   }
 }

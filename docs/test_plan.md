@@ -89,7 +89,7 @@ M3 未将 macOS 真机项伪标为通过。Apple Silicon/Intel Node 下载、SHA
 | 平台/范围 | 结果 | 证据 |
 |---|---|---|
 | Windows 11 x64 自检 | PASS | `tests/windows-check.ps1` 退出码 0；Node 兼容集合、Get-DshUrl、token 脱敏、Node 选版断言全部 PASS |
-| Windows M2 真实 Token URL | PASS | `C:\Users\Lenovo\dsh-token-fix-test\logs\install-20260920-183614.log`：`urlSource=detected tokenPresent=True httpStatus=200`，且 token 扫描 PASS |
+| Windows M2 真实 Token URL | PASS | `%TEMP%\dsh-token-fix-test\logs\install-20260920-183614.log`：`urlSource=detected tokenPresent=True httpStatus=200`，且 token 扫描 PASS |
 | macOS 脚本/契约 | PASS + WARN | `tests/macos-check.sh`：PASS=9、WARN=1、FAIL=0；所有脚本 `bash -n` PASS |
 | macOS Intel 真机 | PENDING | 当前 Windows 主机无法执行 Darwin Node 下载、npx、`nc`/端口、`open` 和真实进程树 |
 | macOS Apple Silicon 真机 | PENDING | 同上；需在 arm64 Mac 或 CI runner 执行 |
@@ -113,3 +113,19 @@ M5 当前不能标记 completed；交付前必须补做至少一台 Intel 或 Ap
 | `docs/acceptance/macos-arm64.md` | NOT TESTED：等待 Apple Silicon Mac，已准备完整验收门清单 |
 | `docs/acceptance/macos-x86_64.md` | NOT TESTED：等待 Intel Mac，已准备完整验收门清单 |
 | `docs/acceptance/release-gate.md` | PARTIAL：Windows PASS，两个 macOS 架构尚未真机验证 |
+
+## 12. 官方桌面端迁移测试计划（实现中，尚未通过）
+
+本节是与旧 Web M1–M6 **独立**的验证门。设计见 [DESKTOP_TRANSITION.md](DESKTOP_TRANSITION.md)。旧 `windows-check.ps1` 和 `macos-check.sh` 仍只证明 Web 部署，不得作为桌面链 PASS。
+
+| 层级 | Windows x64 | macOS arm64 / x64 | 通过判据 |
+|---|---|---|---|
+| Feed / 版本 | 稳定 200、稳定 404→候选确认、超时/5xx/非法 feed 不回退 | 同左，分别选对 target | 精确版本、路径、size、SHA-512 一致 |
+| 来源 / 完整性 | URL 跨域/跨架构、大小错误、哈希错误、无效/错误发行者签名拒绝 | SHA-512、Bundle ID、Team ID、codesign 与 spctl 错误拒绝 | 失败安装物绝不执行或覆盖 |
+| 已有环境 | 无 App、同版本、旧版本、比目标新、未知同名 App、已有 Web 快捷方式 | 同左，另查 symlink/备份路径和空间 | 同版本复用；其余按所有权/升级策略处理 |
+| 安装 / 恢复 | NSIS 用户取消、失败、成功，注册表和安装路径二次核查 | staging→备份→promotion，注入失败并验证回滚 | 旧安装和用户数据保留，错误可诊断 |
+| 启动 / UI | 从精确安装路径启动，进程与窗口属于该路径，用户确认欢迎页/工作区 | 从精确 App 路径 `open`，用户确认窗口可操作 | Installed、Launched、UI ready 分层 PASS |
+| 共存 / 回归 | `Web→Desktop→Web 重跑` 与 `Desktop→Web→Web 卸载` 均不覆盖/删除原生快捷方式；Web launcher、Token URL、Repair/Uninstall 继续通过 | Web `.command`、Node/npm/npx 路径及桌面 App 相互隔离 | 旧 Web 全部回归继续 PASS |
+| 中断恢复 | 原生 NSIS 失败后重新核对安装登记，不自行删除程序 | 目标/备份/staging 各种中断组合及 journal 恢复，symlink/未知身份负例 | 旧 App 可恢复；模糊状态 fail closed |
+
+截至 2026-09-30：官方发行物联网/哈希、Windows 签名样本和 macOS ZIP 静态 Bundle/CodeDirectory 身份属于**预检证据**。Windows 桌面安装器已实现初版，并通过 Windows PowerShell 5.1 自测、已安装官方 App 只读探测；冷安装与桌面 UI 未验收。macOS 桌面安装/修复/卸载脚本已实现初版，Git Bash 静态与 parser self-test PASS；Apple Silicon 和 Intel 真机签名、Gatekeeper、App/UI、事务中断恢复均未验收。不得将这些预检或静态结果改写成端到端 PASS。

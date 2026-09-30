@@ -1,6 +1,6 @@
 # 风险登记册 (Risk Register)
 
-> 状态: M5 / G3 集成验证中 · 2026-09-21
+> 原 Web 路线：M5 / G3 集成验证中。桌面迁移：G1 已通过，G2 实现中；2026-09-30。
 > 每个风险: 描述 / 可能性 / 影响 / 缓解 / 触发条件。状态: OPEN / MITIGATED / ACCEPTED。
 
 | ID | 描述 | 可能性 | 影响 | 缓解措施 | 触发条件 | 状态 |
@@ -22,6 +22,13 @@
 | R15 | dsh RC 版本快速演进(rc.2→rc.3→0.2.0)带破坏性变更,破坏“可重复” | 高 | 中 | 锁定 `config.dshVersion`,禁用无版本 latest;升级由 M2 显式路径触发并记 CHANGELOG | latest 变更 | MITIGATED(设计) |
 | R16 | 并发安装/安装与启动同时进行踩踏 installDir | 低 | 中 | install 期在 installRoot 写 lock 文件,检测到活动锁则拒绝并提示 | 二实例并发 | OPEN |
 | R17 | 日志无限增长,违背“可维护” | 低 | 低 | 日志轮转:仅保留最近 N 份 install-*/runtime-*;M2 已在安装器中启用并验证 | 长期累积 | MITIGATED |
+| R18 | 官方桌面端尚为 RC，用户误以为稳定正式版 | 高 | 中 | 首次安装仅在稳定 feed 明确 404 且本机确认后选 Nightly；界面/文档标明 RC；不承诺官方 App 后续更新停留在稳定通道 | Stable feed 缺失或官网发布状态变化 | OPEN |
+| R19 | 安装物被替换、跨架构或签名身份不符 | 中 | 严重 | 限定官方 HTTPS host/target/version，校验大小与 SHA-512；Windows 检查 Authenticode 和 DeepSeek CN/O/C；Mac 真机检查 Bundle ID、Team ID、codesign、spctl | Feed/安装包变化或校验失败 | OPEN |
+| R20 | 旧 Web 与官方桌面 App 的同名快捷方式、用户数据或卸载边界冲突 | 高 | 高 | 桌面与 Web 入口暂时分离；识别并备份已知 Web 快捷方式；未知目标停止；修复旧 Web 卸载器快捷方式归属后才允许切换公共入口；不自动迁移 `~/.dsh` | 同机已有 Web 安装 | OPEN |
+| R21 | Mac 应用升级失败导致旧 App 不可用 | 中 | 高 | 仅同卷 staging/备份/原子改名；失败恢复；保留旧版本备份；禁止 symlink 与未知 App 覆盖；两架构真机演练 | 安装或升级现有同名 App | OPEN |
+| R22 | 仅检查进程或窗口导致桌面 UI 被误判可用 | 中 | 高 | 分离 Installed/Launched/UI ready 判据；最后一项须本机用户确认；真机验收单独记录，旧 Web 的 3080 PASS 不迁移 | 桌面进程存在但页面未就绪 | OPEN |
+| R23 | macOS 来源压缩包的未签名 `.command` 被 Gatekeeper 拦截，普通用户误把提示当故障或尝试关闭系统保护 | 高 | 中 | 文档只提供按住 Control 对指定入口选择“打开”及精确文件 `chmod u+x`；绝不移除 quarantine、禁用 Gatekeeper 或防火墙；官方 App 本体必须通过 codesign/spctl | 首次运行安装脚本或系统提示安全验证 | OPEN |
+| R24 | 官方预发布客户端原生安装器需要用户交互，普通用户把版本确认/安装向导误认为静默一键失败 | 中 | 中 | 明示 RC/Preview 状态；在部署器内先确认候选版本，再交由官方安装界面；保持最少必要交互，不模拟按键或绕过官方安装提示 | 当前稳定 feed 返回 404 | OPEN |
 
 ## 待联网核验项(阻塞 M1 进入的前置)
 

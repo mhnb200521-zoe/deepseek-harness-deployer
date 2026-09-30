@@ -96,9 +96,39 @@ function Remove-Safe([string]$path, [string]$label) {
 # 先停止本安装目录拥有的 Harness，释放 cache/launcher 文件锁。
 Stop-OwnedHarnessProcesses $root
 
-# 删除桌面快捷方式
-$lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'DeepSeek Harness.lnk'
-Remove-Safe $lnk '桌面快捷方式'
+# 只删除明确指向本安装 launcher 的快捷方式；保留官方桌面 App 或其他同名快捷方式。
+$desktop = [Environment]::GetFolderPath('Desktop')
+$ownedLauncher = [IO.Path]::GetFullPath((Join-Path $root 'launcher\start-dsh.cmd'))
+$shell = $null
+try {
+    $shell = New-Object -ComObject WScript.Shell
+    foreach ($name in @('DeepSeek Harness Web.lnk', 'DeepSeek Harness.lnk')) {
+        $shortcutPath = Join-Path $desktop $name
+        if (-not (Test-Path -LiteralPath $shortcutPath -PathType Leaf)) { continue }
+        try {
+            $shortcutItem = Get-Item -LiteralPath $shortcutPath -Force -ErrorAction Stop
+            if (($shortcutItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                Write-Host ("  [保留] 快捷方式是重解析点: {0}" -f $shortcutPath) -ForegroundColor Yellow
+                continue
+            }
+            $shortcut = $shell.CreateShortcut($shortcutPath)
+            $target = [string]$shortcut.TargetPath
+            if ($target -and [IO.Path]::IsPathRooted($target) -and
+                [string]::Equals([IO.Path]::GetFullPath($target), $ownedLauncher, [StringComparison]::OrdinalIgnoreCase)) {
+                Remove-Safe $shortcutPath '属于本安装的桌面快捷方式'
+            } else {
+                Write-Host ("  [保留] 快捷方式目标不属于本安装: {0}" -f $shortcutPath) -ForegroundColor Yellow
+            }
+            [void][Runtime.InteropServices.Marshal]::ReleaseComObject($shortcut)
+        } catch {
+            Write-Host ("  [保留] 无法验证快捷方式归属: {0}" -f $shortcutPath) -ForegroundColor Yellow
+        }
+    }
+} catch {
+    Write-Host '  [保留] 无法验证快捷方式归属，因此没有删除任何快捷方式。' -ForegroundColor Yellow
+} finally {
+    if ($shell) { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell) }
+}
 
 # 删除私有 runtime(安全:仅本产品目录内)
 Remove-Safe (Join-Path $root 'runtime') '私有 Node Runtime'
