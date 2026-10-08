@@ -104,10 +104,10 @@ bash macos/uninstall-desktop-macos.sh
 
 | 项目 | 证据 / 状态 |
 |---|---|
-| Windows PowerShell 5.1 | feed/架构/版本/快捷方式归属自测 PASS；本机已安装官方签名应用的只读探测 PASS |
-| Windows 冷安装 | NOT TESTED：开发机已存在官方桌面版，不卸载现有应用来制造测试环境；需在干净 VM/新用户机验收 |
+| Windows PowerShell 5.1 与一键入口 | 桌面自检、`.cmd -ProbeOnly`、现有安装幂等部署、稳定版 404→候选版 feed 解析及同版本复用 PASS；快捷方式、启动路径和可见 UI 已确认 |
+| Windows 冷安装 | NOT TESTED：开发机已存在官方桌面版，且无可用隔离 VM；未卸载现有应用来制造测试环境，需在干净 VM/新用户机验收 |
 | macOS 静态检查 | Bash 语法、feed/版本自测、官方来源与 Gatekeeper 静态契约 PASS（Windows 主机的 Git Bash） |
 | Apple Silicon 真机 | NOT TESTED |
 | Intel Mac 真机 | NOT TESTED |
 
-因此桌面版仍是预览实施，尚不代表跨平台 Release PASS。查看 [迁移架构与完整验收矩阵](DESKTOP_TRANSITION.md) 和 [测试计划](test_plan.md)。
+Windows 本次验收记录见 [Windows 桌面端验收记录](acceptance/windows-desktop-2026-10-08.md)。桌面版仍是预览实施，尚不代表冷安装或跨平台 Release PASS。查看 [迁移架构与完整验收矩阵](DESKTOP_TRANSITION.md) 和 [测试计划](test_plan.md)。

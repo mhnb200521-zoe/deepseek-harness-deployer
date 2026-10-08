@@ -128,4 +128,4 @@ M5 当前不能标记 completed；交付前必须补做至少一台 Intel 或 Ap
 | 共存 / 回归 | `Web→Desktop→Web 重跑` 与 `Desktop→Web→Web 卸载` 均不覆盖/删除原生快捷方式；Web launcher、Token URL、Repair/Uninstall 继续通过 | Web `.command`、Node/npm/npx 路径及桌面 App 相互隔离 | 旧 Web 全部回归继续 PASS |
 | 中断恢复 | 原生 NSIS 失败后重新核对安装登记，不自行删除程序 | 目标/备份/staging 各种中断组合及 journal 恢复，symlink/未知身份负例 | 旧 App 可恢复；模糊状态 fail closed |
 
-截至 2026-09-30：官方发行物联网/哈希、Windows 签名样本和 macOS ZIP 静态 Bundle/CodeDirectory 身份属于**预检证据**。Windows 桌面安装器已实现初版，并通过 Windows PowerShell 5.1 自测、已安装官方 App 只读探测；冷安装与桌面 UI 未验收。macOS 桌面安装/修复/卸载脚本已实现初版，Git Bash 静态与 parser self-test PASS；Apple Silicon 和 Intel 真机签名、Gatekeeper、App/UI、事务中断恢复均未验收。不得将这些预检或静态结果改写成端到端 PASS。
+截至 2026-10-08：Windows PowerShell 5.1 桌面自检、旧 Web 回归、实际 `.cmd -ProbeOnly`、已安装环境幂等部署、稳定版 404→候选版字节 feed 解析/同版本复用、快捷方式、启动路径和 UI 确认均 PASS。实测发现并修复 PowerShell 模块路径污染与 YAML 字节响应解析问题。Windows 首次冷安装/NSIS 完整交互仍 NOT TESTED：当前主机已有官方 App，且没有可用隔离 VM；不得把同版本复用或 UI 启动 PASS 改写为冷安装 PASS。详细证据见 [Windows 桌面端验收记录](acceptance/windows-desktop-2026-10-08.md)。macOS 桌面安装/修复/卸载脚本已实现初版，Git Bash 静态与 parser self-test PASS；Apple Silicon 和 Intel 真机签名、Gatekeeper、App/UI、事务中断恢复均未验收。

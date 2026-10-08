@@ -32,11 +32,11 @@
       "desktop_migration": {
         "name": "官方 DeepSeek Harness 桌面版迁移",
         "architecture_gate": { "status": "passed", "date": "2026-09-30", "scope": "仅桌面迁移 G1 架构；不是实现或产品验收 PASS" },
-        "implementation_gate": { "status": "in_progress", "evidence": ["Windows PowerShell 5.1 self-test PASS", "Windows 本机官方签名 App 只读探测 PASS", "Git Bash macOS 静态与 parser self-test PASS"], "gaps": ["Windows 新用户冷安装/UI 未测试", "macOS Intel 真机未测试", "macOS Apple Silicon 真机未测试"] },
+        "implementation_gate": { "status": "in_progress", "evidence": ["Windows PowerShell 5.1 self-test PASS", "Windows 本机官方签名 App 只读探测 PASS", "2026-10-08: .cmd -ProbeOnly 与现有安装幂等部署 PASS; 已验证快捷方式、安装路径启动和 UI", "2026-10-08: 官方稳定 feed 404→nightly 0.2.0-rc.2 字节响应解析及同版本复用 PASS; 下载/重装未触发", "2026-10-08: 修复 .cmd 的 PowerShell 5.1 模块路径隔离和 application/yaml byte[] 严格 UTF-8 解码; 桌面自检和 Windows Web 回归 PASS", "Git Bash macOS 静态与 parser self-test PASS"], "gaps": ["Windows 干净环境首次冷安装/完整 NSIS 交互未测试; 当前主机已有官方 App 且无隔离 VM", "macOS Intel 真机未测试", "macOS Apple Silicon 真机未测试"] },
         "integration_gate": { "status": "pending", "release_status": "blocked_pending_real_hardware_acceptance" },
         "public_entry_switched": false,
         "preview_version_observed": "0.2.0-rc.2",
-        "preview_version_observed_date": "2026-09-30"
+        "preview_version_observed_date": "2026-10-08"
       }
     }
   },
@@ -51,7 +51,7 @@
     "node_source": "https://nodejs.org/dist/ (official only; verified reachable 2026-09-19)",
     "official_desktop": {
       "source": "https://download.deepseek.com/dsh-desk/feeds/",
-      "stable_feed_status_checked": "HTTP 404 on 2026-09-30",
+      "stable_feed_status_checked": "HTTP 404 on 2026-10-08",
       "preview_version_observed": "0.2.0-rc.2",
       "node_policy_applies": false,
       "note": "Desktop app manages its bundled runtime; app version is dynamically read from official feed and not permanently pinned."

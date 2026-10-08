@@ -1,6 +1,7 @@
 ﻿$ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $installer = Join-Path $root 'windows\install-desktop-windows.ps1'
+$entry = Join-Path $root 'windows\install-desktop-windows.cmd'
 $repair = Join-Path $root 'windows\repair-desktop-windows.ps1'
 $uninstall = Join-Path $root 'windows\uninstall-desktop-windows.ps1'
 $webInstaller = Join-Path $root 'windows\install-windows.ps1'
@@ -17,6 +18,11 @@ Assert ($bytes.Length -gt 3 -and $bytes[0] -eq 239 -and $bytes[1] -eq 187 -and $
 $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -SelfTest 2>&1
 if ($LASTEXITCODE -ne 0) { $output | ForEach-Object { Write-Host $_ }; throw 'desktop installer self-test failed' }
 Assert (($output -join "`n") -match 'desktop-windows selftest: PASS') 'desktop feed parser self-test'
+
+$entryText = [IO.File]::ReadAllText($entry)
+$moduleIsolation = $entryText.IndexOf('set "PSModulePath="', [StringComparison]::OrdinalIgnoreCase)
+$powershellInvocation = $entryText.IndexOf('powershell -NoProfile', [StringComparison]::OrdinalIgnoreCase)
+Assert ($moduleIsolation -ge 0 -and $powershellInvocation -gt $moduleIsolation) 'one-click entry isolates Windows PowerShell module path'
 
 foreach ($scriptPath in @($repair, $uninstall)) {
     $tokens = $null; $errors = $null

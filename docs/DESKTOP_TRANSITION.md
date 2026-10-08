@@ -1,6 +1,6 @@
 # 官方桌面端部署迁移：架构与验收草案
 
-状态：2026-09-30，桌面迁移 G1 架构复审 PASS；该结论只批准进入实现，不代表桌面端已交付或任何平台端到端验收通过。Windows 初版与 macOS 脚本已实现；冷安装和 Mac 真机仍待验收。
+状态：2026-09-30，桌面迁移 G1 架构复审 PASS；该结论只批准进入实现，不代表桌面端已交付或任何平台端到端验收通过。2026-10-08 Windows 已安装环境的一键复用、feed 更新检查、启动与 UI 验收 PASS；Windows 冷安装和 Mac 真机仍待验收。
 
 ## 事实基线
 
@@ -31,8 +31,15 @@
 - Windows：`install-desktop-windows.cmd` 是薄入口；`install-desktop-windows.ps1` 支持 x64、官方 feed 选版、预发布确认、大小/SHA-512/Authenticode 校验、现有安装探测、原生安装器调用、用户 UI 确认和桌面快捷方式。`repair-desktop-windows.ps1` 只对已验证同版本重跑官方安装器；`uninstall-desktop-windows.ps1` 只打开 Windows 已安装应用设置，不自行删程序/数据。
 - macOS：新增 `.command` 入口、官方 feed/架构检测、SHA-512 与 App Bundle/Team ID/codesign/spctl 验证、`~/Applications` 同卷暂存/备份/journal 恢复、用户 UI 确认、桌面启动器、修复及带二次确认的卸载。
 - 旧 Web 的 Node/npm/Token URL 主路径未变。快捷方式隔离为必要的最小实现变更；Windows Web regression 仍 PASS。
-- 当前宿主证据：Windows PowerShell 5.1 自测 PASS；本机官方签名桌面 App 的只读探测 PASS（未下载、安装、升级或启动）；macOS Git Bash 静态检查与 feed/版本自测 PASS。以上不是冷安装或 Mac 真机证据。
-- 缺口：Windows 新用户冷安装/原生安装器完整交互/桌面 UI 未测试；Apple Silicon 和 Intel Mac 上 `codesign`、`spctl`、事务恢复、安装、启动、卸载及 UI 都 NOT TESTED。桌面公共入口仍保持独立，未切换原 Web 入口。
+- 当前宿主证据（2026-10-08）：Windows 桌面自测、旧 Web 回归、真实 `.cmd` 入口、已安装环境幂等部署、feed 更新检查、启动及 UI 验收 PASS；同版本复用路径没有下载或重装。Windows 首次冷安装仍未测试。macOS Git Bash 静态检查与 feed/版本自测 PASS，但不代表 Mac 真机验收。
+- 缺口：Windows 新用户冷安装和原生 NSIS 安装器完整交互仍未测试；Apple Silicon 和 Intel Mac 上 `codesign`、`spctl`、事务恢复、安装、启动、卸载及 UI 都 NOT TESTED。桌面公共入口仍保持独立，未切换原 Web 入口。
+
+## Windows 主机验收补充（2026-10-08）
+
+- 实际 `.cmd` 入口在 Codex 运行环境中曾因继承的 `PSModulePath` 混入 PowerShell 7 模块路径，导致 Windows PowerShell 5.1 加载 `Microsoft.PowerShell.Security` 时发生重复类型定义并报 `DSH-D999`。入口现仅在 `setlocal` 子进程中清空该变量，让 Windows PowerShell 使用自身默认模块路径；不修改系统或用户持久环境变量。
+- 官方 Windows nightly feed 的 `Content-Type` 为 `application/yaml`。Windows PowerShell 5.1 将该响应体提供为 `byte[]`；安装器现以严格 UTF-8 解码，并拒绝非法编码。桌面自测覆盖字符串与字节响应以及非法 UTF-8。
+- `windows-desktop-check.ps1`、旧 Web `windows-check.ps1`、真实 `.cmd -ProbeOnly`、默认现有安装幂等路径及 `-Upgrade` 稳定版 404→候选版解析均 PASS。当前已安装版本与官方候选版本同为 `0.2.0-rc.2`，更新检查明确跳过下载和重装；桌面应用从已验证路径启动，窗口和工作区 UI 已现场确认。
+- 冷安装仍 NOT TESTED：本机已有官方应用，未卸载现有安装；Windows Sandbox、Hyper-V、VirtualBox、VMware 和 QEMU 均不可用，因此没有实际运行首次 NSIS 安装。详见 [Windows 验收记录](acceptance/windows-desktop-2026-10-08.md)。
 
 ## 桌面端状态机
 

@@ -196,18 +196,27 @@ function ConvertFrom-DesktopFeed([string]$body, [string]$channel) {
     if ($size -lt 1000000) { Stop-Desktop 'DSH-D002' '官方版本清单的文件大小异常。' }
     return [pscustomobject]@{ Version=$version; Url=$path; Size=$size; Sha512=$sha; Channel=$channel }
 }
+function ConvertFrom-FeedContent([object]$content) {
+    if ($content -is [string]) { return $content }
+    if ($content -isnot [byte[]]) { Stop-Desktop 'DSH-D002' '官方版本清单响应类型无效。' }
+    try {
+        return [System.Text.UTF8Encoding]::new($false, $true).GetString($content)
+    } catch {
+        Stop-Desktop 'DSH-D002' '官方版本清单不是有效的 UTF-8 文本。'
+    }
+}
 function Read-Feed([string]$channel) {
     if ($channel -eq 'stable') { $feedName = 'latest.yml' } else { $feedName = 'nightly.yml' }
     $feedUrl = '{0}/dsh-desk/feeds/win-x64/{1}' -f $script:origin, $feedName
     try {
         $response = Invoke-WebRequest -Uri $feedUrl -UseBasicParsing -MaximumRedirection 0 -TimeoutSec 25
-        $body = [string]$response.Content
     } catch {
         $status = 0
         if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
         if ($channel -eq 'stable' -and $status -eq 404) { return $null }
         Stop-Desktop 'DSH-D001' ('官方 {0} 版本清单不可用（HTTP {1}）；不会自动改用其他来源。' -f $channel, $status)
     }
+    $body = ConvertFrom-FeedContent $response.Content
     return (ConvertFrom-DesktopFeed $body $channel)
 }
 function Test-FeedParser {
@@ -226,6 +235,13 @@ sha512: >-
 '@
     $parsed = ConvertFrom-DesktopFeed $example 'nightly'
     if ($parsed.Version -ne '0.2.0-rc.2' -or $parsed.Size -ne 289313640 -or $parsed.Sha512.Length -ne 88) { throw 'feed field parser failed' }
+    $exampleBytes = [System.Text.UTF8Encoding]::new($false, $true).GetBytes($example)
+    $decoded = ConvertFrom-FeedContent $exampleBytes
+    $parsedBytes = ConvertFrom-DesktopFeed $decoded 'nightly'
+    if ($parsedBytes.Version -ne $parsed.Version -or $parsedBytes.Url -ne $parsed.Url -or $parsedBytes.Sha512 -ne $parsed.Sha512) { throw 'UTF-8 byte response parsing failed' }
+    $rejected = $false
+    try { $null = ConvertFrom-FeedContent ([byte[]]@(0xC3, 0x28)) } catch { $rejected = $true }
+    if (-not $rejected) { throw 'invalid UTF-8 response was accepted' }
     $badHost = $example.Replace('download.deepseek.com', 'attacker.example')
     $rejected = $false
     try { $null = ConvertFrom-DesktopFeed $badHost 'nightly' } catch { $rejected = $true }
@@ -261,7 +277,7 @@ sha512: >-
             Remove-Item -LiteralPath $fixture -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
-    Write-Host 'desktop-windows selftest: PASS (feed, host, architecture, version order, Web ownership)'
+    Write-Host 'desktop-windows selftest: PASS (feed, UTF-8 response, host, architecture, version order, Web ownership)'
 }
 function Get-Sha512Base64([string]$path) {
     $stream = [System.IO.File]::OpenRead($path)
