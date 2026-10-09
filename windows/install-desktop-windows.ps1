@@ -239,6 +239,14 @@ sha512: >-
     $decoded = ConvertFrom-FeedContent $exampleBytes
     $parsedBytes = ConvertFrom-DesktopFeed $decoded 'nightly'
     if ($parsedBytes.Version -ne $parsed.Version -or $parsedBytes.Url -ne $parsed.Url -or $parsedBytes.Sha512 -ne $parsed.Sha512) { throw 'UTF-8 byte response parsing failed' }
+    $ranges = @(Get-DesktopRangePlan 11 2 3)
+    if ($ranges.Count -ne 3 -or $ranges[0].Start -ne 2 -or $ranges[0].End -ne 4 -or
+        $ranges[1].Start -ne 5 -or $ranges[1].End -ne 7 -or $ranges[2].Start -ne 8 -or $ranges[2].End -ne 10) {
+        throw 'parallel download range planning failed'
+    }
+    if (-not (Test-DesktopContentRange 'bytes 5-7/11' 5 7 11) -or (Test-DesktopContentRange 'bytes 5-8/11' 5 7 11)) {
+        throw 'HTTP Content-Range validation failed'
+    }
     $rejected = $false
     try { $null = ConvertFrom-FeedContent ([byte[]]@(0xC3, 0x28)) } catch { $rejected = $true }
     if (-not $rejected) { throw 'invalid UTF-8 response was accepted' }
@@ -277,7 +285,7 @@ sha512: >-
             Remove-Item -LiteralPath $fixture -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
-    Write-Host 'desktop-windows selftest: PASS (feed, UTF-8 response, host, architecture, version order, Web ownership)'
+    Write-Host 'desktop-windows selftest: PASS (feed, UTF-8 response, range planning, Content-Range, host, architecture, version order, Web ownership)'
 }
 function Get-Sha512Base64([string]$path) {
     $stream = [System.IO.File]::OpenRead($path)
@@ -286,6 +294,266 @@ function Get-Sha512Base64([string]$path) {
         try { return [Convert]::ToBase64String($hasher.ComputeHash($stream)) }
         finally { $hasher.Dispose() }
     } finally { $stream.Dispose() }
+}
+function Get-DesktopRangePlan([long]$size, [long]$offset, [int]$parts) {
+    if ($size -lt 1 -or $offset -lt 0 -or $offset -gt $size -or $parts -lt 1) {
+        Stop-Desktop 'DSH-D003' '分段下载范围参数无效。'
+    }
+    $ranges = New-Object System.Collections.Generic.List[object]
+    if ($offset -eq $size) { return @($ranges.ToArray()) }
+    $remaining = $size - $offset
+    $chunkSize = [long][Math]::Ceiling($remaining / [double]$parts)
+    $start = $offset
+    $index = 0
+    while ($start -lt $size) {
+        $end = [Math]::Min(($size - 1), ($start + $chunkSize - 1))
+        $ranges.Add([pscustomobject]@{ Index=$index; Start=[long]$start; End=[long]$end; Length=[long]($end - $start + 1) })
+        $start = $end + 1
+        $index++
+    }
+    return @($ranges.ToArray())
+}
+function Test-DesktopContentRange([string]$header, [long]$start, [long]$end, [long]$total) {
+    $match = [regex]::Match($header, '^bytes\s+(\d+)-(\d+)/(\d+)$', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    return ($match.Success -and [long]$match.Groups[1].Value -eq $start -and
+        [long]$match.Groups[2].Value -eq $end -and [long]$match.Groups[3].Value -eq $total)
+}
+function Format-DesktopDuration([double]$seconds) {
+    if ($seconds -lt 0 -or [double]::IsInfinity($seconds) -or [double]::IsNaN($seconds)) { return '计算中' }
+    $span = [TimeSpan]::FromSeconds([Math]::Min($seconds, 359999))
+    if ($span.TotalHours -ge 1) { return ('{0}小时{1}分' -f [int]$span.TotalHours, $span.Minutes) }
+    if ($span.TotalMinutes -ge 1) { return ('{0}分{1}秒' -f [int]$span.TotalMinutes, $span.Seconds) }
+    return ('{0}秒' -f [Math]::Max(0, $span.Seconds))
+}
+function Invoke-DesktopSingleDownload([string]$url, [string]$partialPath, [long]$expectedSize) {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $partialItem = Get-Item -LiteralPath $partialPath -Force -ErrorAction SilentlyContinue
+    $offset = 0L
+    if ($partialItem) {
+        if (($partialItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $partialItem.PSIsContainer) {
+            Stop-Desktop 'DSH-D003' '下载暂存路径不是普通文件；为保护用户数据未覆盖。'
+        }
+        $offset = [long]$partialItem.Length
+        if ($offset -gt $expectedSize) { Stop-Desktop 'DSH-D003' '已有下载暂存文件超过官方文件大小，无法安全续传。' }
+    }
+    if ($offset -eq $expectedSize) { return }
+
+    $request = [System.Net.HttpWebRequest]::Create([uri]$url)
+    $request.Method = 'GET'
+    $request.AllowAutoRedirect = $false
+    $request.Timeout = 600000
+    $request.ReadWriteTimeout = 600000
+    if ($offset -gt 0) { $request.AddRange([long]$offset, [long]($expectedSize - 1)) }
+    $response = $null
+    $inputStream = $null
+    $outputStream = $null
+    try {
+        $response = $request.GetResponse()
+        $status = [int]$response.StatusCode
+        if ($offset -gt 0 -and $status -eq 200) {
+            # Some servers ignore Range. Restart this response from byte zero rather than appending it.
+            $offset = 0L
+        } elseif ($status -eq 206) {
+            if (-not (Test-DesktopContentRange ([string]$response.Headers['Content-Range']) $offset ($expectedSize - 1) $expectedSize)) {
+                Stop-Desktop 'DSH-D003' '官方服务器返回的续传范围与请求不一致。'
+            }
+        } elseif ($status -ne 200) {
+            Stop-Desktop 'DSH-D003' ('官方服务器返回 HTTP {0}。' -f $status)
+        }
+        $expectedResponseBytes = $expectedSize - $offset
+        if ($response.ContentLength -ge 0 -and $response.ContentLength -ne $expectedResponseBytes) {
+            Stop-Desktop 'DSH-D003' '官方服务器返回的下载长度与请求不一致。'
+        }
+        $mode = if ($offset -gt 0) { [IO.FileMode]::Append } else { [IO.FileMode]::Create }
+        $outputStream = New-Object System.IO.FileStream($partialPath, $mode, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+        $inputStream = $response.GetResponseStream()
+        $buffer = New-Object byte[] 1048576
+        $received = 0L
+        $reported = 0L
+        $timer = [Diagnostics.Stopwatch]::StartNew()
+        while (($read = $inputStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+            $received += [long]$read
+            if ($received -gt $expectedResponseBytes) { Stop-Desktop 'DSH-D003' '官方服务器发送的数据超过清单中的文件大小。' }
+            $outputStream.Write($buffer, 0, $read)
+            if (($timer.ElapsedMilliseconds - $reported) -ge 1000) {
+                $total = $offset + $received
+                $elapsed = [Math]::Max(1, $timer.Elapsed.TotalSeconds)
+                $rate = $received / $elapsed
+                $remaining = [Math]::Max(0, $expectedSize - $total)
+                $eta = if ($rate -lt 1024) { '计算中' } else { Format-DesktopDuration ($remaining / $rate) }
+                $statusText = '已下载 {0:N1}/{1:N1} MiB，{2:N2} MiB/s，预计剩余 {3}' -f ($total / 1MB), ($expectedSize / 1MB), ($rate / 1MB), $eta
+                Write-Progress -Activity '下载 DeepSeek Harness 官方桌面安装包' -Status $statusText -PercentComplete ([int][Math]::Min(99, ($total * 100 / $expectedSize)))
+                $reported = $timer.ElapsedMilliseconds
+            }
+        }
+        $outputStream.Flush()
+        if ($received -ne $expectedResponseBytes) { Stop-Desktop 'DSH-D003' '下载连接提前结束；已保留已下载部分，可重新运行续传。' }
+    } finally {
+        if ($inputStream) { $inputStream.Dispose() }
+        if ($outputStream) { $outputStream.Dispose() }
+        if ($response) { $response.Dispose() }
+        Write-Progress -Activity '下载 DeepSeek Harness 官方桌面安装包' -Completed
+    }
+}
+function Invoke-DesktopParallelDownload([string]$url, [string]$partialPath, [long]$expectedSize) {
+    $partialItem = Get-Item -LiteralPath $partialPath -Force -ErrorAction SilentlyContinue
+    $offset = 0L
+    if ($partialItem) {
+        if (($partialItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $partialItem.PSIsContainer) {
+            Stop-Desktop 'DSH-D003' '下载暂存路径不是普通文件；为保护用户数据未覆盖。'
+        }
+        $offset = [long]$partialItem.Length
+        if ($offset -gt $expectedSize) { Stop-Desktop 'DSH-D003' '已有下载暂存文件超过官方文件大小，无法安全续传。' }
+    }
+    if ($offset -eq $expectedSize) { return }
+
+    $supportsRanges = $false
+    $headResponse = $null
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $headRequest = [System.Net.HttpWebRequest]::Create([uri]$url)
+        $headRequest.Method = 'HEAD'
+        $headRequest.AllowAutoRedirect = $false
+        $headRequest.Timeout = 25000
+        $headResponse = $headRequest.GetResponse()
+        $supportsRanges = ([int]$headResponse.StatusCode -eq 200 -and $headResponse.ContentLength -eq $expectedSize -and
+            [string]$headResponse.Headers['Accept-Ranges'] -match '(?i)(^|[,\s])bytes([,\s]|$)')
+    } catch {
+        $supportsRanges = $false
+    } finally {
+        if ($headResponse) { $headResponse.Dispose() }
+    }
+    if (-not $supportsRanges) {
+        Write-Event INFO '服务器未确认支持分段下载，使用可续传的单连接下载。'
+        Invoke-DesktopSingleDownload $url $partialPath $expectedSize
+        return
+    }
+
+    $ranges = @(Get-DesktopRangePlan $expectedSize $offset 4)
+    if ($ranges.Count -lt 2) {
+        Invoke-DesktopSingleDownload $url $partialPath $expectedSize
+        return
+    }
+    $driveRoot = [IO.Path]::GetPathRoot($partialPath)
+    $driveInfo = New-Object System.IO.DriveInfo -ArgumentList $driveRoot
+    $remainingBytes = $expectedSize - $offset
+    $requiredBytes = (2 * $remainingBytes) + (64 * 1MB)
+    if ($driveInfo.AvailableFreeSpace -lt $requiredBytes) {
+        Write-Event WARN '磁盘剩余空间不足以安全暂存并行分段，改用单连接续传。'
+        Invoke-DesktopSingleDownload $url $partialPath $expectedSize
+        return
+    }
+
+    $tempDir = '{0}.parts-{1}' -f $partialPath, [guid]::NewGuid().ToString('N')
+    New-Item -ItemType Directory -Path $tempDir -ErrorAction Stop | Out-Null
+    $jobs = New-Object System.Collections.Generic.List[object]
+    $timer = [Diagnostics.Stopwatch]::StartNew()
+    $worker = {
+        param([string]$DownloadUrl, [long]$Start, [long]$End, [string]$OutputPath, [long]$TotalSize)
+        $ErrorActionPreference = 'Stop'
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $request = [System.Net.HttpWebRequest]::Create([uri]$DownloadUrl)
+        $request.Method = 'GET'
+        $request.AllowAutoRedirect = $false
+        $request.Timeout = 600000
+        $request.ReadWriteTimeout = 600000
+        $request.AddRange([long]$Start, [long]$End)
+        $response = $null
+        $responseStream = $null
+        $output = $null
+        try {
+            $response = $request.GetResponse()
+            if ([int]$response.StatusCode -ne 206) { throw 'range response status was not 206' }
+            $header = [string]$response.Headers['Content-Range']
+            $rangeMatch = [regex]::Match($header, '^bytes\s+(\d+)-(\d+)/(\d+)$', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+            if (-not $rangeMatch.Success -or [long]$rangeMatch.Groups[1].Value -ne $Start -or
+                [long]$rangeMatch.Groups[2].Value -ne $End -or [long]$rangeMatch.Groups[3].Value -ne $TotalSize) {
+                throw 'range response did not match the requested bytes'
+            }
+            $expected = $End - $Start + 1
+            if ($response.ContentLength -ne $expected) { throw 'range response length was incorrect' }
+            $responseStream = $response.GetResponseStream()
+            $output = New-Object System.IO.FileStream($OutputPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+            $buffer = New-Object byte[] 1048576
+            $received = 0L
+            while (($read = $responseStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                $received += [long]$read
+                if ($received -gt $expected) { throw 'range response exceeded its declared length' }
+                $output.Write($buffer, 0, $read)
+            }
+            $output.Flush()
+            if ($received -ne $expected) { throw 'range response ended early' }
+            return $true
+        } finally {
+            if ($responseStream) { $responseStream.Dispose() }
+            if ($output) { $output.Dispose() }
+            if ($response) { $response.Dispose() }
+        }
+    }
+    try {
+        foreach ($range in $ranges) {
+            $segmentPath = Join-Path $tempDir ('segment-{0:D2}.bin' -f $range.Index)
+            $job = Start-Job -ScriptBlock $worker -ArgumentList @($url, $range.Start, $range.End, $segmentPath, $expectedSize)
+            $jobs.Add([pscustomobject]@{ Job=$job; Range=$range; Path=$segmentPath })
+        }
+        $active = @($jobs | Where-Object { $_.Job.State -in @('NotStarted', 'Running') }).Count
+        while ($active -gt 0) {
+            $written = 0L
+            foreach ($record in $jobs) {
+                $segment = Get-Item -LiteralPath $record.Path -Force -ErrorAction SilentlyContinue
+                if ($segment -and -not $segment.PSIsContainer -and ($segment.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) {
+                    $written += [Math]::Min([long]$record.Range.Length, [long]$segment.Length)
+                }
+            }
+            $total = $offset + $written
+            $elapsed = [Math]::Max(1, $timer.Elapsed.TotalSeconds)
+            $rate = $written / $elapsed
+            $left = [Math]::Max(0, $expectedSize - $total)
+            $eta = if ($rate -lt 1024) { '计算中' } else { Format-DesktopDuration ($left / $rate) }
+            $statusText = '4 路并行，已下载 {0:N1}/{1:N1} MiB，{2:N2} MiB/s，预计剩余 {3}' -f ($total / 1MB), ($expectedSize / 1MB), ($rate / 1MB), $eta
+            Write-Progress -Activity '下载 DeepSeek Harness 官方桌面安装包' -Status $statusText -PercentComplete ([int][Math]::Min(99, ($total * 100 / $expectedSize)))
+            Start-Sleep -Milliseconds 500
+            $active = @($jobs | Where-Object { $_.Job.State -in @('NotStarted', 'Running') }).Count
+        }
+        $failed = $false
+        foreach ($record in $jobs) {
+            $jobOutput = @(Receive-Job -Job $record.Job -ErrorAction SilentlyContinue)
+            if ($record.Job.State -ne 'Completed' -or $jobOutput.Count -eq 0 -or -not [bool]$jobOutput[-1]) { $failed = $true }
+            $segment = Get-Item -LiteralPath $record.Path -Force -ErrorAction SilentlyContinue
+            if (-not $segment -or $segment.PSIsContainer -or ($segment.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $segment.Length -ne $record.Range.Length) { $failed = $true }
+        }
+        if ($failed) { throw 'parallel range request failed validation' }
+
+        $currentPartial = Get-Item -LiteralPath $partialPath -Force -ErrorAction SilentlyContinue
+        if ($offset -gt 0 -and (-not $currentPartial -or $currentPartial.Length -ne $offset -or ($currentPartial.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) {
+            throw 'partial download changed while range requests were running'
+        }
+        foreach ($record in ($jobs | Sort-Object { $_.Range.Index })) {
+            $segmentInput = [IO.File]::OpenRead($record.Path)
+            $output = $null
+            try {
+                $output = New-Object System.IO.FileStream($partialPath, [IO.FileMode]::Append, [IO.FileAccess]::Write, [IO.FileShare]::Read)
+                $segmentInput.CopyTo($output, 1048576)
+                $output.Flush()
+            } finally {
+                if ($output) { $output.Dispose() }
+                if ($segmentInput) { $segmentInput.Dispose() }
+            }
+            Remove-Item -LiteralPath $record.Path -Force -ErrorAction Stop
+        }
+        Write-Progress -Activity '下载 DeepSeek Harness 官方桌面安装包' -Completed
+    } finally {
+        if ($jobs.Count -gt 0) {
+            $jobItems = @($jobs | ForEach-Object { $_.Job })
+            $jobItems | Where-Object { $_.State -in @('NotStarted', 'Running') } | Stop-Job -ErrorAction SilentlyContinue
+            $jobItems | Remove-Job -Force -ErrorAction SilentlyContinue
+        }
+        $tempItem = Get-Item -LiteralPath $tempDir -Force -ErrorAction SilentlyContinue
+        if ($tempItem -and $tempItem.PSIsContainer -and ($tempItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) {
+            Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        Write-Progress -Activity '下载 DeepSeek Harness 官方桌面安装包' -Completed
+    }
 }
 function Test-VersionNotOlder([string]$candidate, [string]$installed) {
     $a = [regex]::Match($candidate, '^(\d+)\.(\d+)\.(\d+)(?:-(alpha|beta|rc)\.(\d+))?$')
@@ -419,18 +687,38 @@ try {
             if (($partialItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $partialItem.PSIsContainer) {
                 Stop-Desktop 'DSH-D003' '下载暂存路径不是普通文件；为保护用户数据未覆盖。'
             }
-            Remove-Item -LiteralPath $partial -Force -ErrorAction Stop
         }
-        try { Invoke-WebRequest -Uri $feed.Url -UseBasicParsing -MaximumRedirection 0 -TimeoutSec 600 -OutFile $partial }
-        catch { Stop-Desktop 'DSH-D003' '官方安装包下载失败。请检查网络后重试。' }
+        $cachedPartialValid = $partialItem -and $partialItem.Length -eq $feed.Size -and (Get-Sha512Base64 $partial) -ceq $feed.Sha512
+        if ($cachedPartialValid) {
+            Move-Item -LiteralPath $partial -Destination $installer -Force
+            $cachedPackageValid = $true
+            Write-Event PASS '发现已完整下载并通过 SHA-512 校验的暂存包。'
+        } else {
+            if ($partialItem -and $partialItem.Length -eq $feed.Size) {
+                Remove-Item -LiteralPath $partial -Force -ErrorAction Stop
+                Write-Event WARN '完整暂存包校验失败，已清理损坏缓存并重新下载。'
+            }
+            Write-Event INFO '开始下载官方桌面安装包；将优先尝试最多 4 路并行，并保留可续传进度。'
+            try {
+                Invoke-DesktopParallelDownload $feed.Url $partial $feed.Size
+            } catch {
+                if ($_.Exception.Message -match '^DSH-D003:') { throw }
+                Write-Event WARN '并行分段请求未完成；保留连续下载部分，切换到单连接续传。'
+                try { Invoke-DesktopSingleDownload $feed.Url $partial $feed.Size }
+                catch { Stop-Desktop 'DSH-D003' '官方安装包下载失败。请检查网络后重新运行；已下载部分会保留以便续传。' }
+            }
+        }
         $downloadedItem = Get-Item -LiteralPath $partial -Force -ErrorAction SilentlyContinue
-        if (-not $downloadedItem -or ($downloadedItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $downloadedItem.PSIsContainer) {
-            Stop-Desktop 'DSH-D003' '下载后暂存文件不是普通文件；未执行。'
+        if (-not $cachedPackageValid) {
+            if (-not $downloadedItem -or ($downloadedItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or $downloadedItem.PSIsContainer) {
+                Stop-Desktop 'DSH-D003' '下载后暂存文件不是普通文件；未执行。'
+            }
+            if ($downloadedItem.Length -ne $feed.Size -or (Get-Sha512Base64 $partial) -cne $feed.Sha512) {
+                Remove-Item -LiteralPath $partial -Force -ErrorAction SilentlyContinue
+                Stop-Desktop 'DSH-D003' '官方安装包大小或 SHA-512 不匹配；无效暂存文件已清理，未执行。'
+            }
+            Move-Item -LiteralPath $partial -Destination $installer -Force
         }
-        if ($downloadedItem.Length -ne $feed.Size -or (Get-Sha512Base64 $partial) -cne $feed.Sha512) {
-            Stop-Desktop 'DSH-D003' '官方安装包大小或 SHA-512 不匹配；未执行。'
-        }
-        Move-Item -LiteralPath $partial -Destination $installer -Force
     }
     Write-Event PASS ('安装包 SHA-512 校验通过；版本 {0}。' -f $feed.Version)
     $script:stage='Signature'

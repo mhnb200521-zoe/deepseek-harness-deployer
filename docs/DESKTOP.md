@@ -104,10 +104,18 @@ bash macos/uninstall-desktop-macos.sh
 
 | 项目 | 证据 / 状态 |
 |---|---|
-| Windows PowerShell 5.1 与一键入口 | 桌面自检、`.cmd -ProbeOnly`、现有安装幂等部署、稳定版 404→候选版 feed 解析及同版本复用 PASS；快捷方式、启动路径和可见 UI 已确认 |
+| Windows PowerShell 5.1 与一键入口 | 桌面自检（含本地 HTTP fixture 四路 Range 和 `.part` 续传 SHA-512）、旧 Web 回归、`.cmd -ProbeOnly`、现有安装幂等部署、稳定版 404→候选版 feed 解析及同版本复用 PASS；快捷方式、启动路径和可见 UI 已确认 |
 | Windows 冷安装 | NOT TESTED：开发机已存在官方桌面版，且无可用隔离 VM；未卸载现有应用来制造测试环境，需在干净 VM/新用户机验收 |
 | macOS 静态检查 | Bash 语法、feed/版本自测、官方来源与 Gatekeeper 静态契约 PASS（Windows 主机的 Git Bash） |
 | Apple Silicon 真机 | NOT TESTED |
 | Intel Mac 真机 | NOT TESTED |
 
 Windows 本次验收记录见 [Windows 桌面端验收记录](acceptance/windows-desktop-2026-10-08.md)。桌面版仍是预览实施，尚不代表冷安装或跨平台 Release PASS。查看 [迁移架构与完整验收矩阵](DESKTOP_TRANSITION.md) 和 [测试计划](test_plan.md)。
+
+## Windows 桌面安装包下载
+
+官方桌面版需要下载完整 Windows 安装包；已观测候选版约 289 MB，旧 Web 部署器下载的运行环境和 npm 包通常小得多，因此两条安装流程的耗时不能直接比较。下载速度还会受测试者到官方 CDN 的网络线路、代理和本机安全软件影响。
+
+桌面安装器会先确认官方服务器支持 HTTP 字节范围，再尝试最多 4 路并行下载；无法确认或并行请求失败时会自动退回单连接。进度显示已下载大小、平均速度和剩余时间。中断后重新运行新版入口会请求从缓存中的连续 `.part` 文件续传；若服务器忽略范围请求，则安全地从头下载，避免把重复数据拼入安装包。下载结束仍必须通过官方清单大小、SHA-512 和 Authenticode 发布者校验，之后才执行安装器。
+
+若已下载字节数连续数分钟不变，先检查测试者的网络是否能稳定访问 `download.deepseek.com`，并排查代理、VPN、防火墙或安全软件对下载的影响。旧测试包不具备断点续传；换用新版前需先结束旧安装窗口，新版会保留并验证旧版本产生的连续下载部分。

@@ -39,3 +39,19 @@ Therefore these items remain `NOT TESTED`:
 - A clean Windows user/profile with an existing Web deployment and unknown/occupied shortcut negative cases.
 
 Run those cases on a clean Windows x64 VM or a dedicated test machine before marking Windows cold-install acceptance complete.
+
+## 2026-10-09 download responsiveness update
+
+The friend test screenshot showed `14,745,600` bytes written, about 5.1% of the then-current `289,313,640`-byte official candidate installer. A single screenshot cannot establish transfer speed because it has no elapsed-time measurement. The existing installer used one `Invoke-WebRequest` transfer and discarded an incomplete `.part` file on the next run.
+
+The Windows desktop installer now probes `Accept-Ranges`, attempts up to four validated HTTP byte ranges, displays transferred size, average speed, and estimated time remaining, and resumes a continuous `.part` prefix after interruption. It falls back to a single HTTP request if the server does not advertise ranges, available space is low, or a parallel request fails. If the server ignores a requested range, the installer safely restarts from byte zero instead of appending duplicate data. Feed size, SHA-512, and Authenticode publisher checks still gate execution.
+
+| Test | Result | Evidence |
+|---|---|---|
+| Windows PowerShell 5.1 parser and `-SelfTest` | PASS | Range planning and exact `Content-Range` tests included |
+| Local HTTP range fixture | PASS | Started from a 1 MiB existing prefix, fetched four ranges, assembled the 8 MiB fixture, and matched SHA-512; a no-`Accept-Ranges` response also selected single-connection resume and matched SHA-512 |
+| `tests/windows-desktop-check.ps1` | PASS, exit 0 | Includes the local range/resume integration test and prior desktop checks |
+| `tests/windows-check.ps1` | PASS, exit 0 | Legacy Web deployment regression remains passing |
+| Official 289 MB installer download and clean cold installation | NOT TESTED | No full package was downloaded on the development host; friends' network/CDN routes and clean Windows install remain external acceptance items |
+
+The new test build can resume the previous installer's continuous `.part` prefix. Before switching packages, close the old install window so its file handle is released, then run the new `install-desktop-windows.cmd` from the updated ZIP.

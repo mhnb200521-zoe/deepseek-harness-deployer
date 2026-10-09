@@ -121,6 +121,7 @@ M5 当前不能标记 completed；交付前必须补做至少一台 Intel 或 Ap
 | 层级 | Windows x64 | macOS arm64 / x64 | 通过判据 |
 |---|---|---|---|
 | Feed / 版本 | 稳定 200、稳定 404→候选确认、超时/5xx/非法 feed 不回退 | 同左，分别选对 target | 精确版本、路径、size、SHA-512 一致 |
+| 下载 / 续传 | HEAD 能力探测、四路 Range 响应范围核对、已有 `.part` 前缀续传、分段失败退回单连接、速度与 ETA 展示 | 采用系统下载能力，重试时验证已有连续部分 | 最终字节数和 SHA-512 一致；不匹配安装物绝不执行 |
 | 来源 / 完整性 | URL 跨域/跨架构、大小错误、哈希错误、无效/错误发行者签名拒绝 | SHA-512、Bundle ID、Team ID、codesign 与 spctl 错误拒绝 | 失败安装物绝不执行或覆盖 |
 | 已有环境 | 无 App、同版本、旧版本、比目标新、未知同名 App、已有 Web 快捷方式 | 同左，另查 symlink/备份路径和空间 | 同版本复用；其余按所有权/升级策略处理 |
 | 安装 / 恢复 | NSIS 用户取消、失败、成功，注册表和安装路径二次核查 | staging→备份→promotion，注入失败并验证回滚 | 旧安装和用户数据保留，错误可诊断 |
@@ -128,4 +129,4 @@ M5 当前不能标记 completed；交付前必须补做至少一台 Intel 或 Ap
 | 共存 / 回归 | `Web→Desktop→Web 重跑` 与 `Desktop→Web→Web 卸载` 均不覆盖/删除原生快捷方式；Web launcher、Token URL、Repair/Uninstall 继续通过 | Web `.command`、Node/npm/npx 路径及桌面 App 相互隔离 | 旧 Web 全部回归继续 PASS |
 | 中断恢复 | 原生 NSIS 失败后重新核对安装登记，不自行删除程序 | 目标/备份/staging 各种中断组合及 journal 恢复，symlink/未知身份负例 | 旧 App 可恢复；模糊状态 fail closed |
 
-截至 2026-10-08：Windows PowerShell 5.1 桌面自检、旧 Web 回归、实际 `.cmd -ProbeOnly`、已安装环境幂等部署、稳定版 404→候选版字节 feed 解析/同版本复用、快捷方式、启动路径和 UI 确认均 PASS。实测发现并修复 PowerShell 模块路径污染与 YAML 字节响应解析问题。Windows 首次冷安装/NSIS 完整交互仍 NOT TESTED：当前主机已有官方 App，且没有可用隔离 VM；不得把同版本复用或 UI 启动 PASS 改写为冷安装 PASS。详细证据见 [Windows 桌面端验收记录](acceptance/windows-desktop-2026-10-08.md)。macOS 桌面安装/修复/卸载脚本已实现初版，Git Bash 静态与 parser self-test PASS；Apple Silicon 和 Intel 真机签名、Gatekeeper、App/UI、事务中断恢复均未验收。
+截至 2026-10-09：Windows PowerShell 5.1 桌面自检、旧 Web 回归、官方并行下载/续传本地 HTTP fixture（四个 Range、完整 SHA-512）、实际 `.cmd -ProbeOnly`、已安装环境幂等部署、稳定版 404→候选版字节 feed 解析/同版本复用、快捷方式、启动路径和 UI 确认均 PASS。下载功能使用官方字节范围能力时最多 4 路并行，并支持中断后的连续前缀续传；尚未对朋友的网络进行测速，也未下载完整官方安装器。本机已有官方 App 且没有可用隔离 VM，因此 Windows 首次冷安装/NSIS 完整交互仍 NOT TESTED；不得把同版本复用或 UI 启动 PASS 改写为冷安装 PASS。详细证据见 [Windows 桌面端验收记录](acceptance/windows-desktop-2026-10-08.md)。macOS 桌面安装/修复/卸载脚本已实现初版，Git Bash 静态与 parser self-test PASS；Apple Silicon 和 Intel 真机签名、Gatekeeper、App/UI、事务中断恢复均未验收。
