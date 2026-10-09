@@ -49,9 +49,10 @@ The Windows desktop installer now probes `Accept-Ranges`, attempts up to four va
 | Test | Result | Evidence |
 |---|---|---|
 | Windows PowerShell 5.1 parser and `-SelfTest` | PASS | Range planning and exact `Content-Range` tests included |
+| Current official feed and CDN Range probe | PASS | `0.2.0-rc.2`, 289,313,640-byte feed; HEAD returned matching length and `Accept-Ranges: bytes`; a 64 KiB GET returned HTTP 206 with the exact `Content-Range` |
 | Local HTTP range fixture | PASS | Started from a 1 MiB existing prefix, fetched four ranges, assembled the 8 MiB fixture, and matched SHA-512; a no-`Accept-Ranges` response also selected single-connection resume and matched SHA-512 |
 | `tests/windows-desktop-check.ps1` | PASS, exit 0 | Includes the local range/resume integration test and prior desktop checks |
 | `tests/windows-check.ps1` | PASS, exit 0 | Legacy Web deployment regression remains passing |
-| Official 289 MB installer download and clean cold installation | NOT TESTED | No full package was downloaded on the development host; friends' network/CDN routes and clean Windows install remain external acceptance items |
+| Official full 289 MB installer download and clean cold installation | NOT TESTED | The live check only requested 64 KiB; full package hash/signature and friend network/CDN route remain unverified, as does clean Windows install |
 
 The new test build can resume the previous installer's continuous `.part` prefix. Before switching packages, close the old install window so its file handle is released, then run the new `install-desktop-windows.cmd` from the updated ZIP.
